@@ -1,1 +1,1 @@
-# Ch2 Phase Behavior and Thermodynamic Anomalies
+# Ch2 Phase behavior and thermodynamic anomalies
