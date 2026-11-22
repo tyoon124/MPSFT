@@ -556,8 +556,8 @@ def main():
         rho = np.concatenate([c[:, 2], c[::-1, 3]]) * M_CO2
         T = np.concatenate([c[:, 0], c[::-1, 0]])
         a.plot(rho, T, color=col[name], label=name, **sty[name])
-    a.set_xlabel(r"$\rho$ / kg m$^{-3}$")
-    a.set_ylabel("$T$ / K")
+    a.set_xlabel(r"$\rho$ [kg m$^{-3}$]")
+    a.set_ylabel("$T$ [K]")
     a.set_ylim(255, 306)
     a.set_xlim(0, 1100)
     a.legend(loc="lower right")
@@ -571,8 +571,8 @@ def main():
     for name in ("NIST", "PR", "CPR"):
         c = cp_curves[name]
         b.semilogy(c[:, 0], c[:, 3], color=col[name], label=name, **sty[name])
-    b.set_xlabel(r"$t = T/T_\mathrm{c} - 1$")
-    b.set_ylabel(r"$C_p$ / J mol$^{-1}$ K$^{-1}$")
+    b.set_xlabel(r"$t = T/T_\mathrm{crit} - 1$")
+    b.set_ylabel(r"$C_\mathrm{p}$ [J mol$^{-1}$ K$^{-1}$]")
     b.set_xlim(-0.05, 0.05)
     b.text(-0.175,1.0,'B',fontweight='bold',fontsize=8,transform=b.transAxes)
     

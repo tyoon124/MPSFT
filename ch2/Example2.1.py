@@ -100,7 +100,7 @@ for ax, panel, fluid in zip(axes, panels, FLUIDS):
 
     ax.set_xlim(cfg['xlim'])
     ax.set_ylim(cfg['ylim'])
-    ax.set_xlabel(r'$\rho$ [kg/m$^3$]')
+    ax.set_xlabel(r'$\rho$ [kg m$^{-3}$]')
     ax.set_ylabel(r'$p$ [MPa]')
     ax.text(-0.175, 0.95, panel, fontweight='bold', fontsize=8, transform=ax.transAxes)
 

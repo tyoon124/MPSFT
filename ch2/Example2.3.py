@@ -5,7 +5,7 @@ Molecular Physics of Supercritical Fluid Technologies
 
 Chapter 2 Phase Behavior and Thermodynamic Anomalies
 Example 2.3 
-The SAFT-$\gamma$ Mie EoS is illustrated here for the binary system CO2--C6H14 (carbon dioxide--$n$-hexane), a prototype system for supercritical extraction with hydrocarbon solutes. Using the SGTPy open-source library (https://github.com/gustavochm/sgtpy) with published SAFT-$\gamma$ Mie group parameters for \ce{CO2} and the methylene/methyl groups of $n$-hexane, we compute (a) vapor--liquid equilibria at $T=298$~K and $T=313$~K, and (b) the densities of the coexisting phases. The SAFT-$\gamma$ Mie (dashed lines) and PR (solid lines) results are compared with experimental bubble and dew points (markers) compiled in c6h14.xlsx. Python code is provided in \texttt{Example2.3.py} on the GitHub repository.
+The SAFT-$\gamma$ Mie EoS is illustrated here for the binary system CO2--C6H14 (carbon dioxide--$n$-hexane), a prototype system for supercritical extraction with hydrocarbon solutes. Using the SGTPy open-source library (https://github.com/gustavochm/sgtpy) with published SAFT-$\gamma$ Mie group parameters for \ce{CO2} and the methylene/methyl groups of $n$-hexane, we compute the vapor--liquid equilibria at 298, 313, 353, and 393 K with the SAFT-$\gamma$ Mie EoS (dashed lines) and the PR EoS (solid lines) (panel A) and the densities of the coexisting phases (panel B). Panels C and D compare the bubble pressures and vapor compositions calculated by both EoSs at the measured temperature and liquid composition with the experimental data compiled in c6h14.xlsx (pressure residuals and log-log parity plot of the n-hexane mole fraction in the vapor, y2).
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -344,10 +344,11 @@ def close_curve(x1, y1, P, n_fit=3):
 5-(2) Calculate the densities of the coexisting liquid and vapor phases
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 centimeter = 1 / 2.54
-fig, axes = plt.subplots(1,2,
-                         figsize=(19*centimeter, 8*centimeter),
-                         dpi=500, gridspec_kw = {'hspace':0.25,'wspace':0.25}
-                         )
+fig, axs = plt.subplots(2,2,
+                        figsize=(19*centimeter, 17*centimeter),
+                        dpi=500, gridspec_kw = {'wspace':0.35, 'hspace':0.35}
+                        )
+axes = axs.ravel()
 
 colors = sns.color_palette('viridis',n_colors=len(TinKs))
 
@@ -358,7 +359,6 @@ for i,TinK in enumerate(TinKs):
     Pbubls = out['P']
     srL = np.dot(np.column_stack([x1s, 1-x1s]), Mw) * out['rhoL'] / 1000
     srG = np.dot(np.column_stack([y1s, 1-y1s]), Mw) * out['rhoV'] / 1000
-
     # Closed loop: bubble curve up to the critical point, then the dew curve back down
     x_loop = np.r_[x1s, y1s[::-1]]
     P_loop = np.r_[Pbubls, Pbubls[::-1]]
@@ -404,43 +404,128 @@ for i,TinK in enumerate(TinKs):
     x_loop = np.r_[x1s, y1s[::-1]]
     P_loop = np.r_[Pbubls, Pbubls[::-1]]
     sr_loop = np.r_[srL, srG[::-1]]
-    axes[0].plot(x_loop, P_loop/10, color=colors[i], label='%d K' % TinK)
+    axes[0].plot(x_loop, P_loop/10, color=colors[i])
     axes[1].plot(x_loop, sr_loop, color=colors[i])
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-7. Draw the experimental data and finish the figure.
-Filled markers: bubble points (x1), open markers: dew points (y1).
+7. Bubble-point calculation at each measured state (both EoSs).
+For each data point on the isotherms of panel A, the bubble pressure p_cal and vapor composition
+y_cal are calculated at the measured temperature and liquid composition (T_lit, x_lit). The measured
+pressure is used only as the initial guess; several initial guesses are tried because a single guess
+can converge to the trivial solution y = x. The pressure residual is %dp = 100 (p_lit - p_cal) / p_lit.
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-if expdata is not None:
-    for i,TinK in enumerate(TinKs):
-        sel = expdata[np.abs(expdata['T(K)'] - TinK) <= T_TOL]
-        axes[0].plot(sel['x1'], sel['P(bar)']/10, 'o', markersize=2.5, color=colors[i],
-                     markeredgewidth=0.4, zorder=3)
-        axes[0].plot(sel['y1'], sel['P(bar)']/10, 'o', markersize=2.5, markerfacecolor='w',
-                     markeredgecolor=colors[i], markeredgewidth=0.4, zorder=3)
+y1_guesses = [0.95, 0.99, 0.995, 0.90, 0.98, 0.80]   # initial guesses of y1 tried in turn
+P_factors  = [1.0, 0.9, 1.1, 0.8]                    # initial guesses of P as multiples of p_lit
 
-axes[0].plot([], [], '-', color='k', label='PR')
-axes[0].plot([], [], '--', color='k', label=r'SAFT-$\gamma$ Mie')
+def bubble_point(solver, model_, x1, TinK, P_guess):
+    """Bubble point at (x1, T); returns (Y, P) or None (P in the units of P_guess)."""
+    for y1g in y1_guesses:
+        for fP in P_factors:
+            try:
+                Ycal, Pcal = solver(np.array([y1g, 1-y1g]), fP*P_guess,
+                                    np.array([x1, 1-x1]), TinK, model_)
+            except Exception:
+                continue
+            if np.isfinite(Pcal) and abs(Ycal[0] - x1) > 1e-3 and 0 < Ycal[0] < 1:
+                return Ycal, Pcal
+    return None
+
+# solver, model, pressure unit factor (bar -> model units)
+models = {'PR'                : (bubblePyPR, model, 1.0),
+          r'SAFT-$\gamma$ Mie' : (bubblePy,   eos,   1.0e5)}
+results = {}
 if expdata is not None:
-    axes[0].plot([], [], 'o', markersize=2.5, color='k', label='Exp. (bubble)')
-    axes[0].plot([], [], 'o', markersize=2.5, markerfacecolor='w', markeredgecolor='k',
-                 markeredgewidth=0.4, label='Exp. (dew)')
-axes[0].legend(frameon=False)
+    for name, (solver, model_, fac) in models.items():
+        rows = []
+        n_fail = 0
+        for i, TinK in enumerate(TinKs):
+            sel = expdata[np.abs(expdata['T(K)'] - TinK) <= T_TOL].dropna(subset=['P(bar)'])
+            for _, row in sel.iterrows():
+                x1 = row['x1']
+                if not (0 < x1 < 1):
+                    continue
+                Plit = row['P(bar)']
+                sol = bubble_point(solver, model_, x1, row['T(K)'], Plit*fac)
+                if sol is None:
+                    n_fail += 1
+                    continue
+                Ycal, Pcal = sol
+                rows.append([i, x1, Plit, Pcal/fac, row['y1'], Ycal[0]])
+        r = np.array(rows, dtype=float)
+        dP = 100 * (r[:, 2] - r[:, 3]) / r[:, 2]
+        has_y = np.isfinite(r[:, 4])
+        results[name] = dict(i=r[:, 0].astype(int), x=r[:, 1], dP=dP,
+                             ylit=r[:, 4], ycal=r[:, 5], has_y=has_y)
+        print('%s: %d points (skipped %d), AAD of p = %.2f %%, AAD of y1 = %.4f (%d points)'
+              % (name, len(dP), n_fail, np.mean(np.abs(dP)),
+                 np.mean(np.abs(r[has_y, 4] - r[has_y, 5])), has_y.sum()))
+
+
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+8. Finish the figure.
+(A) p-x-y diagram and (B) densities of the coexisting phases; PR (solid) and SAFT-gamma Mie (dashed).
+(C) Pressure residuals and (D) parity plot of y2 = 1 - y1 (log-log);
+open triangles: PR, filled diamonds: SAFT-gamma Mie.
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 axes[0].set_xlim([0,1])
 axes[0].set_ylim([0,12])
-axes[0].text(0.975,0.95,r'CO$_\mathbf{2}$/C$_\mathbf{6}$H$_\mathbf{14}$',fontweight='bold',
-             horizontalalignment='right',
+axes[0].text(0.05,0.95,
+             r'CO$_\mathbf{2}$/C$_\mathbf{6}$H$_\mathbf{14}$',
+             fontweight='bold',
+             horizontalalignment='left',
              transform=axes[0].transAxes)
 axes[0].set_xlabel(r'$x_1,~y_1$')
 axes[0].set_ylabel(r'$p$ [MPa]')
 axes[1].set_xlabel(r'$x_1,~y_1$')
-axes[1].set_ylabel(r'$\rho$ [kg/m$^3$]')
+axes[1].set_ylabel(r'$\rho$ [kg m$^{-3}$]')
 axes[1].set_xlim([0,1])
 axes[1].set_ylim([0,850])
 
-axes[0].text(-0.15,1.0,'A',fontweight='bold',transform=axes[0].transAxes)
-axes[1].text(-0.15,1.0,'B',fontweight='bold',transform=axes[1].transAxes)
+style = {'PR'                : dict(marker='^', mfc='w', ms=2.5, mew=0.4, ls='none'),
+         r'SAFT-$\gamma$ Mie' : dict(marker='D', ms=2.0, mew=0, ls='none')}
+y2_all = []
+for name, res in results.items():
+    for i in range(len(TinKs)):
+        m = res['i'] == i
+        st = dict(style[name])
+        if st.get('mfc') == 'w':
+            st['mec'] = colors[i]
+        else:
+            st['color'] = colors[i]
+        axes[2].plot(res['x'][m], res['dP'][m], zorder=3, **st)
+        # parity plot of the n-hexane mole fraction in the vapor, y2 = 1 - y1
+        my = m & res['has_y'] & (res['ylit'] < 1) & (res['ycal'] < 1)
+        axes[3].plot(1 - res['ylit'][my], 1 - res['ycal'][my], zorder=3, **st)
+        y2_all += list(1 - res['ylit'][my]) + list(1 - res['ycal'][my])
+
+axes[2].axhline(0, color='k', lw=.5, zorder=1)
+axes[2].set_xlim([0,1])
+axes[2].set_xlabel(r'$x_1$')
+axes[2].set_ylabel(r'$\%\Delta p$')
+
+y2_all = np.array(y2_all)
+lo = 10**np.floor(np.log10(y2_all.min()))
+hi = 10**np.ceil(np.log10(y2_all.max()))
+axes[3].plot([lo, hi], [lo, hi], color='k', lw=.5, zorder=1)
+axes[3].set_xscale('log')
+axes[3].set_yscale('log')
+axes[3].set_xlim([lo, hi])
+axes[3].set_ylim([lo, hi])
+axes[3].set_xlabel(r'$y_{2,\mathrm{lit}}$')
+axes[3].set_ylabel(r'$y_{2,\mathrm{cal}}$')
+
+# One legend for all panels, below the axes
+from matplotlib.lines import Line2D
+handles = [Line2D([], [], color=colors[i], lw=1.5, label='%d K' % TinK) for i, TinK in enumerate(TinKs)]
+handles += [Line2D([], [], color='k', ls='-',  marker='^', mfc='w', ms=2.5, mew=0.4, label='PR'),
+            Line2D([], [], color='k', ls='--', marker='D', ms=2.0, mew=0, label=r'SAFT-$\gamma$ Mie')]
+fig.legend(handles=handles, loc='lower center', ncol=6, frameon=False,
+           bbox_to_anchor=(0.5, 0.0), handlelength=2.5, columnspacing=1.2)
+
+for ax in axes:
+    ax.set_box_aspect(1)
+for k, panel in enumerate(['A', 'B', 'C', 'D']):
+    axes[k].text(-0.18, 1.0, panel, fontweight='bold', 
+                 fontsize=8, transform=axes[k].transAxes)
 
 plt.savefig('figure2.4.pdf',dpi=500,bbox_inches='tight')
-
-
