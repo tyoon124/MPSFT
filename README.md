@@ -7,30 +7,11 @@ Python scripts and simulation input files for the worked examples in
 The examples illustrate the physics discussed in the book. They are deliberately small: a few state points, short simulations, and scripts that run on a desktop computer. They are not meant to produce research-grade data, but they can be adapted to other fluids, mixtures, and conditions.
 
 ## Repository layout
-
-```
-MPSFT/
-├── ch2/
-│   ├── Example2.1.py
-│   ├── Example2.2.py
-│   ├── c2oh.xlsx            # literature data used by Example 2.2
-│   └── ...
-├── ch5/
-│   ├── Example5.6/
-│   │   ├── Example5.6.py    # analysis and plotting
-│   │   ├── rho_0.050/in.lj  # one LAMMPS input per state point
-│   │   └── ...
-│   └── ...
-└── ...
-```
-
 - One folder per chapter (`ch2` to `ch15`). Chapter 1 has no worked examples.
 - Each example is a single script named after its number in the book (`Example2.2.py` is Example 2.2).
 - Simulation examples (Chapters 4 to 7) have their own subfolder. Each state point has one self-contained input file in its own subfolder (for example, `T1.00/in.slab`). The Python script in the example folder only analyzes and plots the simulation output.
-- Scripts that only draw schematic figures are not included.
 
 ## Requirements
-
 The scripts were tested with Python 3.10. Most need only NumPy, SciPy, Matplotlib, and CoolProp:
 
 ```bash
