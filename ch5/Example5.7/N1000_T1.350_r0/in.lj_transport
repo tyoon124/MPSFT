@@ -1,0 +1,70 @@
+# Example 5.7 -- LJ fluid, equilibrium MD for D (Einstein, VACF) and eta (Green-Kubo)
+# N = 1000, T* = 1.350, rho* = 0.316, replica 0
+# Reduced LJ units: m = epsilon = sigma = k_B = 1.
+
+# ---------------- settings ----------------
+variable rho     index 0.316      # reduced density
+variable temp0   index 1.350      # reduced temperature
+variable N       index 1000      # number of atoms
+variable seed    index 24345      # random seed (positive integer)
+variable rc      index 2.5      # LJ cutoff
+variable dt      index 0.005      # time step
+variable nequil  index 20000      # NVT equilibration steps
+variable nprod   index 200000      # NVE production steps
+variable stride  index 10      # sampling interval (steps)
+variable ntrack  index 64      # atoms written to the trajectory (for MSD and VACF)
+variable out     index run        # prefix of the output files
+
+# ---------------- system ----------------
+units           lj
+atom_style      atomic
+boundary        p p p
+
+variable        L equal (${N}/${rho})^(1.0/3.0)
+region          box block 0 ${L} 0 ${L} 0 ${L}
+create_box      1 box
+create_atoms    1 random ${N} ${seed} NULL overlap 0.8 maxtry 5000
+mass            1 1.0
+
+pair_style      lj/cut ${rc}
+pair_coeff      1 1 1.0 1.0
+
+neighbor        0.4 bin
+neigh_modify    every 1 delay 0 check yes
+timestep        ${dt}
+
+velocity        all create ${temp0} ${seed} mom yes rot no dist gaussian
+
+thermo          10000
+thermo_style    custom step temp press pe etotal
+
+# ---------------- soft start (random placement may leave close contacts) ----------------
+fix             soft all nve/limit 0.05
+fix             lgv  all langevin ${temp0} ${temp0} 1.0 ${seed}
+run             2000
+unfix           soft
+unfix           lgv
+
+# ---------------- NVT equilibration ----------------
+fix             nvt all nvt temp ${temp0} ${temp0} 0.5
+run             ${nequil}
+unfix           nvt
+
+# ---------------- NVE production ----------------
+# A thermostat perturbs the time correlation functions, so it is switched off here.
+velocity        all zero linear
+reset_timestep  0
+fix             nve all nve
+
+# full pressure tensor (kinetic + virial): pxx pyy pzz pxy pxz pyz, plus the instantaneous T
+compute         P all pressure thermo_temp
+fix             Pout all ave/time ${stride} 1 ${stride} &
+                c_P[1] c_P[2] c_P[3] c_P[4] c_P[5] c_P[6] c_thermo_temp &
+                file ${out}.P.dat
+
+# unwrapped positions and velocities of a subset of atoms
+group           track id <= ${ntrack}
+dump            trj track custom ${stride} ${out}.trj id xu yu zu vx vy vz
+dump_modify     trj sort id format float %.8g
+
+run             ${nprod}

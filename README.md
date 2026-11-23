@@ -7,11 +7,30 @@ Python scripts and simulation input files for the worked examples in
 The examples illustrate the physics discussed in the book. They are deliberately small: a few state points, short simulations, and scripts that run on a desktop computer. They are not meant to produce research-grade data, but they can be adapted to other fluids, mixtures, and conditions.
 
 ## Repository layout
+
+```
+MPSFT/
+├── ch2/
+│   ├── Example2.1.py
+│   ├── Example2.2.py
+│   ├── c2oh.xlsx            # literature data used by Example 2.2
+│   └── ...
+├── ch5/
+│   ├── Example5.6/
+│   │   ├── Example5.6.py    # analysis and plotting
+│   │   ├── rho_0.050/in.lj  # one LAMMPS input per state point
+│   │   └── ...
+│   └── ...
+└── ...
+```
+
 - One folder per chapter (`ch2` to `ch15`). Chapter 1 has no worked examples.
 - Each example is a single script named after its number in the book (`Example2.2.py` is Example 2.2).
 - Simulation examples (Chapters 4 to 7) have their own subfolder. Each state point has one self-contained input file in its own subfolder (for example, `T1.00/in.slab`). The Python script in the example folder only analyzes and plots the simulation output.
+- Scripts that only draw schematic figures are not included.
 
 ## Requirements
+
 The scripts were tested with Python 3.10. Most need only NumPy, SciPy, Matplotlib, and CoolProp:
 
 ```bash
@@ -27,7 +46,7 @@ Some examples need additional packages:
 | pandas, openpyxl | `pandas openpyxl` | Examples 2.2, 2.3, 5.2 |
 | seaborn | `seaborn` | Examples 2.1 to 2.3, 3.1, 3.2, 5.2 |
 | freud, Pillow | `freud-analysis pillow` | Examples 5.2, 5.3 |
-| teqp | `teqp` | Example 5.6 |
+| teqp | `teqp` | Examples 5.5, 5.6 |
 | Numba | `numba` | Example 9.4 |
 | iapws | `iapws` | Examples 12.1, 12.2, 13.1 |
 | pyCHNOSZ | `pychnosz` | Example 13.4 (also needs R with the CHNOSZ package) |
@@ -92,7 +111,7 @@ For the simulation examples:
 | 5.2 | Local density distributions of the Lennard-Jones fluid from Voronoi tessellation | LAMMPS output from Example 5.1; freud |
 | 5.3 | Percolation transition in the supercritical Lennard-Jones fluid | LAMMPS output from Example 5.1; freud |
 | 5.4 | Hydrogen-bond network and tetrahedral order of TIP4P/2005 water | LAMMPS |
-| 5.5 | Response functions near the critical point: fluctuation versus finite difference | LAMMPS |
+| 5.5 | Response functions near the critical point: fluctuation versus finite difference | LAMMPS; teqp |
 | 5.6 | Excess chemical potential and entropy: thermodynamic route versus Widom insertion | LAMMPS; teqp |
 | 5.7 | Self-diffusion coefficient and shear viscosity: Green–Kubo versus Einstein | LAMMPS |
 

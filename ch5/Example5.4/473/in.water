@@ -1,0 +1,45 @@
+print	"*** Lammps simulation Input ***"
+
+print		"*** Variables ***"
+variable	T equal 473.15
+variable	dt equal 0.001
+variable P equal 150.0
+print		"*** Problem Setting***"
+units		metal
+boundary	p p p
+
+print		"*** Force field information ***"
+atom_style	full
+bond_style	harmonic
+angle_style	harmonic
+dihedral_style	none
+improper_style   none
+pair_style	lj/cut/tip4p/long 1 2 1 1 0.1546 12.0
+read_data 	data.initial
+neighbor	2.0 bin
+neigh_modify	every 1 delay 0 check yes
+kspace_style	pppm/tip4p 1e-4
+pair_coeff	1 1 0.0080314678 3.1589
+pair_coeff	2 2 0.0 0.0
+pair_modify	mix arithmetic tail yes
+bond_coeff	1 23.449769844306314 0.9572
+angle_coeff	1 1.9060415 104.52
+velocity	all create $T 418 rot yes mom yes dist gaussian
+print		"*** NVT Preparation"
+variable Td1 equal 100.0*${dt}
+variable Pd1 equal 1000.0*${dt}
+minimize 1.0e-4 1.0e-6 100 1000
+fix 1 all shake 0.0001 20 0 b 1 a 1
+fix NPT all npt temp $T $T ${Td1} iso $P $P ${Pd1}
+thermo_style	custom step temp density press
+thermo		1000
+
+thermo_style	custom step temp density press
+run 2000000
+print		"*** Production simulation"
+
+reset_timestep 0
+dump		1 all custom 2000 dump.lammpstrj id mol type x y z
+dump_modify		1 sort id
+run 5000000
+write_data		data.final
