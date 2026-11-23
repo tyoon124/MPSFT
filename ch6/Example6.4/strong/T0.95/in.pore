@@ -1,0 +1,66 @@
+# Example 6.4 (strongly attractive wall, eps_w = 3, T* = 0.95) -- Lennard-Jones fluid in a slit pore (reduced units)
+# Liquid slab (interface normal along x) between two structureless 9-3 walls at z = 0 and z = H.
+# Same potential, cutoff, thermostat, time step, cross-section and run schedule as Example 6.2.
+# usage:  lmp -in in.pore                      (run inside the folder strong/T0.95/; the settings are below)
+units           lj
+atom_style      atomic
+boundary        p p f                # periodic along x and y, walls (non-periodic) along z
+
+variable        T       index 0.95
+variable        epsw    index 3.0         # wall strength epsilon_w / epsilon_ff
+variable        rcw     index 4.0       # wall cutoff; 0.8579 = (2/5)^(1/6) cuts the 9-3 potential at its minimum (purely repulsive wall)
+variable        H       index 7.0         # wall separation (sigma)
+variable        seed    index 20251
+variable        rcut    index 4.0
+variable        Tmelt   index 1.0       # melt the lattice below T_c so that the slab stays intact
+variable        nmelt   index 5000
+variable        nequil  index 1000000
+variable        nprod   index 2000000    # 1e4 reduced time units after 5e3 tau of equilibration
+
+# box 40.26 x 8.75 x H sigma (the cross-section of Example 6.2); liquid slab = 12 fcc cells (21 sigma) in x,
+# 0.9 sigma away from both walls in z
+variable        a       equal (4.0/0.746)^(1.0/3.0)
+variable        Lx      equal 23*v_a
+variable        Ly      equal 5*v_a
+lattice         fcc 0.746
+region          box  block 0 $(v_Lx) 0 $(v_Ly) 0 ${H} units box
+create_box      1 box
+region          slab block $(5*v_a) $(17*v_a) 0 $(v_Ly) 0.9 $(v_H-0.9) units box
+create_atoms    1 region slab
+mass            1 1.0
+
+pair_style      lj/cut ${rcut}
+pair_coeff      1 1 1.0 1.0
+pair_modify     shift yes            # no tail corrections: the density is inhomogeneous (Sec. 4.6.2)
+neighbor        0.3 bin
+timestep        0.005
+
+fix             wall all wall/lj93 zlo EDGE ${epsw} 1.0 ${rcw} zhi EDGE ${epsw} 1.0 ${rcw} units box
+fix             rec  all recenter 0.5 NULL NULL shift all units fraction   # keeps the slab at the center of the box
+
+velocity        all create ${Tmelt} ${seed} dist gaussian
+fix             melt all nvt temp ${Tmelt} ${Tmelt} 0.5
+thermo          1000
+run             ${nmelt}
+unfix           melt
+
+fix             nvt all nvt temp ${T} ${T} 0.5
+run             ${nequil}
+
+reset_timestep  0
+# production: density profile along the pore axis x (bin 0.5 sigma; use the counts, the last bin is partial)
+# and density profiles across the pore (z, bin 0.1 sigma) in the liquid core (central 8 sigma of the box)
+# and in the vapor region (the outer 6 sigma at both ends of the box)
+region          core   block $(0.5*v_Lx-4.0) $(0.5*v_Lx+4.0) INF INF INF INF units box
+region          vap1   block 0 6.0 INF INF INF INF units box
+region          vap2   block $(v_Lx-6.0) INF INF INF INF INF units box
+region          vapor  union 2 vap1 vap2
+compute         cx  all chunk/atom bin/1d x lower 0.5 units box
+compute         cz1 all chunk/atom bin/1d z lower 0.1 units box region core
+compute         cz2 all chunk/atom bin/1d z lower 0.1 units box region vapor
+fix             profx  all ave/chunk 10 1000 10000 cx  density/number file profile_x.dat
+fix             profzL all ave/chunk 10 1000 10000 cz1 density/number file profile_z_liquid.dat
+fix             profzV all ave/chunk 10 1000 10000 cz2 density/number file profile_z_vapor.dat
+thermo          10000
+thermo_style    custom step temp pe press density
+run             ${nprod}
