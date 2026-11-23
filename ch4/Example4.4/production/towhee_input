@@ -1,0 +1,124 @@
+ensemble
+'nvt'
+temperature
+113.1525
+nmolty
+1
+nmolectyp
+500
+numboxes
+2
+stepstyle
+'cycles'
+nstep
+200000
+printfreq 
+1000   
+blocksize 
+2000
+moviefreq
+10000
+backupfreq  
+1000
+runoutput
+'full'
+pdb_output_freq
+10000
+pressure_virial_freq
+20
+trmaxdispfreq
+100
+volmaxdispfreq
+100
+linit   
+.false.
+initboxtype
+'dimensions'
+initstyle
+'full cbmc'
+'full cbmc'
+initlattice
+'simple cubic'
+'simple cubic'
+initmol
+400
+100
+inix iniy iniz
+8    8    8
+5    5    5   
+hmatrix
+27.9d0 0.0d0 0.0d0
+0.0d0 27.9d0 0.0d0
+0.0d0 0.0d0 27.9d0
+54.7d0 0.0d0 0.0d0
+0.0d0  54.7d0 0.0d0
+0.0d0 0.0d0  54.7d0
+pmvol     
+0.002d0   
+          pmvlpr
+          1.0d0
+          rmvol
+          0.1d0
+          tavol
+          0.5d0
+pm2boxcbswap    
+0.05d0     
+          pm2cbswmt
+          1.0d0
+          pm2cbswpr
+          1.0d0
+pmtracm   
+1.0d0
+          pmtcmt
+          1.0d0
+          rmtrac
+          0.5d0 
+          tatrac
+          0.5d0
+ffnumber
+1
+ff_filename
+towhee_ff_Rowley1975
+classical_potential
+'Lennard-Jones'       
+classical_mixrule
+'Geometric'
+lshift
+.false.
+ltailc
+.true.
+rmin  
+1.0d0 
+rcut  
+12.0d0
+rcutin 
+12.0d0 
+electrostatic_form
+'coulomb'
+coulombstyle
+'ewald_fixed_kmax'
+kalp
+5.6d0
+kmax
+5
+dielect
+1.0d0
+
+input_style
+'basic connectivity map'
+nunit
+1
+nmaxcbmc
+1
+lpdbnames
+F
+forcefield
+'Rowley1975'
+charge_assignment
+'bond increment'
+unit ntype
+1    'Ar'
+vibration
+0
+improper torsion
+0
