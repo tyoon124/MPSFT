@@ -1,0 +1,238 @@
+LAMMPS (22 Jul 2025 - Update 3)
+# Example 7.3 (T* = 2.00) -- attractive solute in a Lennard-Jones solvent on the critical isochore (reduced units)
+# 3 solute atoms (type 2) + 3997 solvent atoms (type 1) in a cubic periodic box (10 x 10 x 10 fcc cells, 23.2 sigma) at
+# rho* = 0.32 (total number density). Compared with the first set of runs (2048 atoms, 8 solutes), the box is larger and
+# the solutes are fewer, so that the excess-solvent clouds of the solutes do not overlap (infinite-dilution limit) and
+# the excess number N_exc(R) can be followed to larger R.
+# usage:  lmp -in in.solute                    (run inside the folder T<value>/; T is set below)
+units           lj
+atom_style      atomic
+boundary        p p p
+
+variable        T       index 2.00
+variable        rho     index 0.32
+variable        seed    index 20262
+variable        ncell   index 10         # fcc cells per box edge: 4 ncell^3 atoms
+variable        nsol    index 3          # number of solute atoms (0.075 % of all atoms: dilute limit)
+variable        esv     index 1.5        # solute-solvent well depth (solvent-solvent = 1)
+variable        ssol    index 1.2        # solute diameter (solvent = 1)
+variable        rcut    index 4.0
+variable        nequil  index 400000     # 2e3 time units
+variable        nprod   index 3000000    # 1.5e4 time units = 30 blocks of 1e5 steps
+
+# 10 x 10 x 10 fcc cells = 4000 atoms (the lattice melts at once at T* > T_c)
+lattice         fcc ${rho}
+lattice         fcc 0.32
+Lattice spacing in x,y,z = 2.3207944 2.3207944 2.3207944
+region          box block 0 ${ncell} 0 ${ncell} 0 ${ncell}
+region          box block 0 10 0 ${ncell} 0 ${ncell}
+region          box block 0 10 0 10 0 ${ncell}
+region          box block 0 10 0 10 0 10
+create_box      2 box
+Created orthogonal box = (0 0 0) to (23.207944 23.207944 23.207944)
+  2 by 2 by 4 MPI processor grid
+create_atoms    1 box
+Created 4000 atoms
+  using lattice units in orthogonal box = (0 0 0) to (23.207944 23.207944 23.207944)
+  create_atoms CPU = 0.001 seconds
+set             group all type/subset 2 ${nsol} ${seed}
+set             group all type/subset 2 3 ${seed}
+set             group all type/subset 2 3 20262
+Setting atom values ...
+  3 settings made for type/subset
+mass            * 1.0
+
+pair_style      lj/cut ${rcut}
+pair_style      lj/cut 4.0
+pair_coeff      1 1 1.0 1.0
+pair_coeff      2 2 1.0 ${ssol}
+pair_coeff      2 2 1.0 1.2
+pair_coeff      1 2 ${esv} $(0.5*(1.0+v_ssol))
+pair_coeff      1 2 1.5 $(0.5*(1.0+v_ssol))
+pair_coeff      1 2 1.5 1.1000000000000000888
+pair_modify     shift yes
+neighbor        0.3 bin
+comm_modify     cutoff 10.5     # ghost atoms for the 10 sigma range of the RDF
+timestep        0.005
+
+velocity        all create ${T} ${seed} dist gaussian
+velocity        all create 2.00 ${seed} dist gaussian
+velocity        all create 2.00 20262 dist gaussian
+fix             nvt all nvt temp ${T} ${T} 0.5
+fix             nvt all nvt temp 2.00 ${T} 0.5
+fix             nvt all nvt temp 2.00 2.00 0.5
+thermo          10000
+thermo_style    custom step temp pe press density
+run             ${nequil}
+run             400000
+Generated 0 of 1 mixed pair_coeff terms from geometric mixing rule
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 4.3
+  ghost atom cutoff = 10.5
+  binsize = 2.15, bins = 11 11 11
+  1 neighbor lists, perpetual/occasional/extra = 1 0 0
+  (1) pair lj/cut, perpetual
+      attributes: half, newton on
+      pair build: half/bin/atomonly/newton
+      stencil: half/bin/3d
+      bin: standard
+Per MPI rank memory allocation (min/avg/max) = 3.45 | 3.45 | 3.45 Mbytes
+   Step          Temp          PotEng         Press         Density    
+         0   2             -1.3369246     -0.19928961     0.32         
+     10000   2.0220142     -1.9680687      0.52582809     0.32         
+     20000   2.0341413     -1.9811923      0.49991852     0.32         
+     30000   2.0153833     -1.9669671      0.51704134     0.32         
+     40000   2.0047798     -1.9679484      0.57979935     0.32         
+     50000   2.0238522     -1.9992376      0.575668       0.32         
+     60000   2.0198665     -1.9749877      0.56256075     0.32         
+     70000   2.0071414     -1.969808       0.53717699     0.32         
+     80000   2.034036      -1.9682561      0.57944782     0.32         
+     90000   1.9996527     -1.9759952      0.55154729     0.32         
+    100000   1.9895497     -1.9502064      0.54767507     0.32         
+    110000   2.0099928     -1.9423003      0.62256367     0.32         
+    120000   1.9876296     -1.9517232      0.59655521     0.32         
+    130000   1.9963945     -1.9636397      0.5466035      0.32         
+    140000   1.9781594     -1.9846655      0.5184489      0.32         
+    150000   2.0020968     -1.944571       0.57055538     0.32         
+    160000   2.0098254     -1.9587126      0.57126899     0.32         
+    170000   2.0153849     -1.973047       0.52809038     0.32         
+    180000   2.0224866     -1.9628616      0.57221957     0.32         
+    190000   1.967479      -2.0012342      0.48768915     0.32         
+    200000   1.9797885     -1.9726783      0.52393025     0.32         
+    210000   2.014731      -1.9726566      0.54151988     0.32         
+    220000   2.0044151     -1.9512277      0.52682208     0.32         
+    230000   2.0042807     -1.9697428      0.57948717     0.32         
+    240000   1.9961491     -1.9537047      0.59548119     0.32         
+    250000   2.0169666     -1.9498025      0.56854064     0.32         
+    260000   2.0094094     -1.9758534      0.57890769     0.32         
+    270000   1.9669172     -1.9919195      0.51072956     0.32         
+    280000   2.0287418     -1.9469663      0.58185437     0.32         
+    290000   1.9842886     -1.9889466      0.51654531     0.32         
+    300000   1.9863344     -1.9628067      0.56144595     0.32         
+    310000   1.9850134     -1.9853263      0.57009216     0.32         
+    320000   2.0224244     -1.9658469      0.58205677     0.32         
+    330000   1.99832       -2.0021524      0.55688672     0.32         
+    340000   2.012215      -1.9771447      0.52126084     0.32         
+    350000   1.9614367     -1.9671978      0.55991073     0.32         
+    360000   2.0312169     -1.989752       0.56435614     0.32         
+    370000   1.97543       -1.9575561      0.56994534     0.32         
+    380000   2.0296482     -1.9713438      0.60388402     0.32         
+    390000   2.0014485     -1.9332095      0.61253934     0.32         
+    400000   2.0017262     -1.9752722      0.49987933     0.32         
+Loop time of 190.345 on 16 procs for 400000 steps with 4000 atoms
+
+Performance: 907824.685 tau/day, 2101.446 timesteps/s, 8.406 Matom-step/s
+85.4% CPU use with 16 MPI tasks x no OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 25.796     | 27.55      | 29.443     |  21.3 | 14.47
+Neigh   | 24.378     | 25.224     | 26.109     |   8.2 | 13.25
+Comm    | 116.2      | 119.52     | 126.88     |  25.9 | 62.79
+Output  | 0.00097739 | 0.0010132  | 0.0014216  |   0.3 |  0.00
+Modify  | 3.2135     | 4.4953     | 5.4678     |  29.7 |  2.36
+Other   |            | 13.56      |            |       |  7.12
+
+Nlocal:            250 ave         275 max         232 min
+Histogram: 2 2 2 3 3 0 1 1 0 2
+Nghost:        8829.56 ave        8951 max        8718 min
+Histogram: 2 1 1 3 1 3 1 2 0 2
+Neighs:        13260.5 ave       15176 max       11390 min
+Histogram: 1 0 3 3 2 2 0 3 0 2
+
+Total # of neighbors = 212168
+Ave neighs/atom = 53.042
+Neighbor list builds = 77805
+Dangerous builds = 0
+
+reset_timestep  0
+# production: solvent-solute (1-2) and solvent-solvent (1-1) radial distribution functions up to 10 sigma
+# (the box is 23.2 sigma), averaged over 30 blocks of 1e5 steps = 500 time units (sampled every 1000 steps)
+compute         rdf all rdf 200 1 2 1 1 cutoff 10.0
+fix             rdfout all ave/time 1000 100 100000 c_rdf[*] file rdf.dat mode vector
+variable        p equal press
+fix             pr all ave/time 100 1 100 v_p file pressure.dat
+thermo          100000
+run             ${nprod}
+run             3000000
+Generated 0 of 1 mixed pair_coeff terms from geometric mixing rule
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 4.3
+  ghost atom cutoff = 10.5
+  binsize = 2.15, bins = 11 11 11
+  2 neighbor lists, perpetual/occasional/extra = 1 1 0
+  (1) pair lj/cut, perpetual
+      attributes: half, newton on
+      pair build: half/bin/atomonly/newton
+      stencil: half/bin/3d
+      bin: standard
+  (2) compute rdf, occasional
+      attributes: half, newton on, cut 10.3
+      pair build: half/bin/atomonly/newton
+      stencil: half/bin/3d
+      bin: standard
+Per MPI rank memory allocation (min/avg/max) = 4.146 | 4.148 | 4.15 Mbytes
+   Step          Temp          PotEng         Press         Density    
+         0   2.0017262     -1.9752722      0.49987933     0.32         
+    100000   1.9824692     -1.988925       0.56709024     0.32         
+    200000   1.9645122     -1.9510593      0.53638666     0.32         
+    300000   1.9563722     -2.0104914      0.48314735     0.32         
+    400000   2.0346942     -1.9518462      0.59893402     0.32         
+    500000   2.0293283     -1.9548202      0.60778167     0.32         
+    600000   1.9714062     -1.9631901      0.56174788     0.32         
+    700000   1.9825099     -1.9679679      0.55190993     0.32         
+    800000   1.9750791     -1.993265       0.49199436     0.32         
+    900000   1.9924241     -1.965559       0.56321178     0.32         
+   1000000   2.0096343     -1.9636973      0.56072337     0.32         
+   1100000   1.9804554     -1.9700927      0.5278384      0.32         
+   1200000   1.9933509     -1.9384157      0.57460184     0.32         
+   1300000   1.9905598     -1.9640197      0.55419081     0.32         
+   1400000   1.9896933     -1.9680323      0.54159795     0.32         
+   1500000   1.9755384     -1.9454287      0.53276223     0.32         
+   1600000   1.9946198     -1.9827281      0.52300606     0.32         
+   1700000   2.0226609     -1.9575827      0.56600923     0.32         
+   1800000   2.0472371     -1.9688419      0.56485426     0.32         
+   1900000   2.0345424     -1.9704764      0.5748166      0.32         
+   2000000   1.9900134     -1.9871351      0.53559396     0.32         
+   2100000   2.0116744     -1.9442429      0.58753063     0.32         
+   2200000   2.0300151     -1.9953171      0.52708516     0.32         
+   2300000   2.0213285     -1.9366401      0.61636342     0.32         
+   2400000   1.9238434     -1.9288524      0.56596446     0.32         
+   2500000   2.0239325     -1.9534827      0.5569552      0.32         
+   2600000   1.9578204     -1.9709436      0.56368957     0.32         
+   2700000   2.0043441     -1.964016       0.52813298     0.32         
+   2800000   2.006999      -1.9876037      0.5350429      0.32         
+   2900000   2.0001642     -1.9356886      0.6190505      0.32         
+   3000000   2.0165256     -1.9750429      0.51502138     0.32         
+Loop time of 1448.63 on 16 procs for 3000000 steps with 4000 atoms
+
+Performance: 894635.994 tau/day, 2070.917 timesteps/s, 8.284 Matom-step/s
+85.8% CPU use with 16 MPI tasks x no OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 189.33     | 206.18     | 219.77     |  61.8 | 14.23
+Neigh   | 206.38     | 215.65     | 223.36     |  31.9 | 14.89
+Comm    | 848.82     | 880.12     | 943.76     |  82.5 | 60.76
+Output  | 0.00080957 | 0.00083171 | 0.00097303 |   0.0 |  0.00
+Modify  | 37.964     | 46.64      | 53.227     |  59.3 |  3.22
+Other   |            | 100        |            |       |  6.91
+
+Nlocal:            250 ave         272 max         233 min
+Histogram: 3 2 1 2 2 0 2 1 2 1
+Nghost:        8849.19 ave        8982 max        8654 min
+Histogram: 1 0 1 2 2 2 2 2 2 2
+Neighs:        13317.6 ave       15154 max       10851 min
+Histogram: 1 2 0 1 2 1 2 4 2 1
+
+Total # of neighbors = 213081
+Ave neighs/atom = 53.27025
+Neighbor list builds = 582870
+Dangerous builds = 0
+Total wall time: 0:27:18

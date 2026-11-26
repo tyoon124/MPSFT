@@ -1,0 +1,261 @@
+LAMMPS (22 Jul 2025 - Update 3)
+# Example 7.1 (mixture density 0.30 g/cm3) -- OH-initiated oxidation of methanol in dense water, ReaxFF (real units)
+# 32 CH3OH + 64 OH radicals + 200 H2O in a cubic periodic box whose size sets the mass density of the mixture.
+# The OH radicals are inserted as the initial reactive species (they stand for the radical pool of supercritical
+# water oxidation). T = 2500 K is used because (i) at 1500 K the CHO-2008 water is not a homogeneous fluid at
+# 0.1-0.3 g/cm3 (it separates into a dense droplet and voids, and its pressure does not follow the density) and
+# (ii) the methanol conversion at 1500 K is too slow to be observed in tens of picoseconds.
+# usage:  lmp -in in.reax                      (run inside the folder rho<value>/; mpirun -np 4 lmp -in in.reax)
+# files:  ffield.reax.cho (Chenoweth et al. 2008, distributed with LAMMPS), methanol.mol, oh.mol, water.mol
+units           real
+atom_style      charge
+boundary        p p p
+
+variable        rho     index 0.30       # mass density of the mixture, g/cm3
+variable        T       index 2500       # K
+variable        nM      index 32         # CH3OH
+variable        nOH     index 64         # OH radicals
+variable        nW      index 200        # H2O
+variable        seed    index 20261
+variable        nsteps  index 120000     # 30 ps at 0.25 fs
+
+variable        M       equal v_nM*32.042+v_nOH*17.007+v_nW*18.015      # total mass in amu
+variable        L       equal (v_M*1.66054/v_rho)^(1.0/3.0)             # box edge in Angstrom
+region          box block 0 ${L} 0 ${L} 0 ${L}
+region          box block 0 31.629584921511 0 ${L} 0 ${L}
+region          box block 0 31.629584921511 0 31.629584921511 0 ${L}
+region          box block 0 31.629584921511 0 31.629584921511 0 31.629584921511
+create_box      3 box
+Created orthogonal box = (0 0 0) to (31.629585 31.629585 31.629585)
+  2 by 2 by 2 MPI processor grid
+molecule        meth methanol.mol
+Read molecule template meth:
+# methanol CH3OH
+  1 molecules
+  0 fragments
+  0 bodies
+  6 atoms with max type 3
+  0 bonds with max type 0
+  0 angles with max type 0
+  0 dihedrals with max type 0
+  0 impropers with max type 0
+molecule        oh   oh.mol
+Read molecule template oh:
+# OH radical
+  1 molecules
+  0 fragments
+  0 bodies
+  2 atoms with max type 3
+  0 bonds with max type 0
+  0 angles with max type 0
+  0 dihedrals with max type 0
+  0 impropers with max type 0
+molecule        wat  water.mol
+Read molecule template wat:
+# water
+  1 molecules
+  0 fragments
+  0 bodies
+  3 atoms with max type 3
+  0 bonds with max type 0
+  0 angles with max type 0
+  0 dihedrals with max type 0
+  0 impropers with max type 0
+create_atoms    0 random ${nM}  ${seed} box mol meth $(v_seed+1) overlap 1.8 maxtry 5000
+create_atoms    0 random 32  ${seed} box mol meth $(v_seed+1) overlap 1.8 maxtry 5000
+create_atoms    0 random 32  20261 box mol meth $(v_seed+1) overlap 1.8 maxtry 5000
+create_atoms    0 random 32  20261 box mol meth 20262 overlap 1.8 maxtry 5000
+Created 192 atoms
+  using lattice units in orthogonal box = (0 0 0) to (31.629585 31.629585 31.629585)
+  create_atoms CPU = 0.057 seconds
+create_atoms    0 random ${nOH} $(v_seed+2) box mol oh $(v_seed+3) overlap 1.8 maxtry 5000
+create_atoms    0 random 64 $(v_seed+2) box mol oh $(v_seed+3) overlap 1.8 maxtry 5000
+create_atoms    0 random 64 20263 box mol oh $(v_seed+3) overlap 1.8 maxtry 5000
+create_atoms    0 random 64 20263 box mol oh 20264 overlap 1.8 maxtry 5000
+Created 128 atoms
+  using lattice units in orthogonal box = (0 0 0) to (31.629585 31.629585 31.629585)
+  create_atoms CPU = 0.000 seconds
+create_atoms    0 random ${nW}  $(v_seed+4) box mol wat $(v_seed+5) overlap 1.8 maxtry 5000
+create_atoms    0 random 200  $(v_seed+4) box mol wat $(v_seed+5) overlap 1.8 maxtry 5000
+create_atoms    0 random 200  20265 box mol wat $(v_seed+5) overlap 1.8 maxtry 5000
+create_atoms    0 random 200  20265 box mol wat 20266 overlap 1.8 maxtry 5000
+Created 600 atoms
+  using lattice units in orthogonal box = (0 0 0) to (31.629585 31.629585 31.629585)
+  create_atoms CPU = 0.006 seconds
+mass            1 12.011
+mass            2 1.008
+mass            3 15.999
+
+pair_style      reaxff NULL
+pair_coeff      * * ffield.reax.cho C H O
+Reading potential file ffield.reax.cho with DATE: 2011-02-18
+fix             qeq all qeq/reaxff 1 0.0 10.0 1.0e-6 reaxff
+neighbor        2.0 bin
+neigh_modify    every 5 delay 0 check yes
+
+thermo          1000
+thermo_style    custom step temp pe press density
+minimize        1e-6 1e-6 500 5000
+
+CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE
+
+Your simulation uses code contributions which should be cited:
+
+- pair reaxff command: doi:10.1016/j.parco.2011.08.005
+
+@Article{Aktulga12,
+ author = {H. M. Aktulga and J. C. Fogarty and S. A. Pandit and A. Y. Grama},
+ title = {Parallel Reactive Molecular Dynamics: {N}umerical Methods and Algorithmic Techniques},
+ journal = {Parallel Computing},
+ year =    2012,
+ volume =  38,
+ number =  {4--5},
+ pages =   {245--259}
+}
+
+- fix qeq/reaxff command: doi:10.1016/j.parco.2011.08.005
+
+@Article{Aktulga12,
+ author = {H. M. Aktulga and J. C. Fogarty and S. A. Pandit and A. Y. Grama},
+ title = {Parallel Reactive Molecular Dynamics: {N}umerical Methods and Algorithmic Techniques},
+ journal = {Parallel Computing},
+ year =    2012,
+ volume =  38,
+ pages =   {245--259}
+}
+
+CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE
+
+Switching to 'neigh_modify every 1 delay 0 check yes' setting during minimization
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 12
+  ghost atom cutoff = 12
+  binsize = 6, bins = 6 6 6
+  2 neighbor lists, perpetual/occasional/extra = 2 0 0
+  (1) pair reaxff, perpetual
+      attributes: half, newton off, ghost
+      pair build: half/bin/ghost/newtoff
+      stencil: full/ghost/bin/3d
+      bin: standard
+  (2) fix qeq/reaxff, perpetual, copy from (1)
+      attributes: half, newton off
+      pair build: copy
+      stencil: none
+      bin: none
+Per MPI rank memory allocation (min/avg/max) = 32.18 | 33.01 | 33.84 Mbytes
+   Step          Temp          PotEng         Press         Density    
+         0   0             -74209.885      8625.6719      0.29999981   
+         2   0             -74227.152     -1450.5293      0.29999981   
+Loop time of 0.0997196 on 8 procs for 2 steps with 920 atoms
+
+90.2% CPU use with 8 MPI tasks x no OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -74209.8848558235  -74227.1479145553  -74227.1520854102
+  Force two-norm initial, final = 1211.3375 1042.531
+  Force max component initial, final = 155.15042 138.61855
+  Final line search alpha, max atom move = 0.00037156378 0.051505632
+  Iterations, force evaluations = 2 4
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.023569   | 0.030185   | 0.052735   |   5.1 | 30.27
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.00062571 | 0.023149   | 0.029756   |   5.8 | 23.21
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 0.046041   | 0.046062   | 0.046081   |   0.0 | 46.19
+Other   |            | 0.0003237  |            |       |  0.32
+
+Nlocal:            115 ave         123 max         101 min
+Histogram: 1 1 0 1 0 0 0 1 0 4
+Nghost:        1699.62 ave        1759 max        1636 min
+Histogram: 1 1 0 1 1 0 2 0 0 2
+Neighs:        20014.9 ave       21770 max       16617 min
+Histogram: 1 1 0 0 1 0 0 0 2 3
+
+Total # of neighbors = 160119
+Ave neighs/atom = 174.04239
+Neighbor list builds = 0
+Dangerous builds = 0
+
+reset_timestep  0
+velocity        all create ${T} ${seed} dist gaussian
+velocity        all create 2500 ${seed} dist gaussian
+velocity        all create 2500 20261 dist gaussian
+timestep        0.25
+fix             nvt all nvt temp ${T} ${T} 25.0
+fix             nvt all nvt temp 2500 ${T} 25.0
+fix             nvt all nvt temp 2500 2500 25.0
+variable        p equal press
+fix             pr all ave/time 20 50 1000 v_p file pressure.dat    # pressure (atm), 1000-step averages
+# atom types: 1 = C, 2 = H, 3 = O.  Connectivity is derived from the interatomic distances in the analysis script.
+dump            traj all custom 200 traj.lammpstrj id type x y z      # every 50 fs
+dump_modify     traj sort id
+thermo          4000
+run             ${nsteps}
+run             120000
+Per MPI rank memory allocation (min/avg/max) = 31.07 | 31.9 | 32.73 Mbytes
+   Step          Temp          PotEng         Press         Density    
+         0   2500          -74227.152      8442.779       0.29999981   
+      4000   2559.6282     -72956.62      -291.16914      0.29999981   
+      8000   2467.9419     -73029.105     -867.22429      0.29999981   
+     12000   2476.3536     -73090.609      1454.4841      0.29999981   
+     16000   2522.8404     -73582.848      3169.3902      0.29999981   
+     20000   2531.8253     -73572.139      287.34135      0.29999981   
+     24000   2539.5808     -73746.378      1183.2229      0.29999981   
+     28000   2553.6517     -73761.851      2309.1504      0.29999981   
+     32000   2647.6933     -73734.394      1505.5587      0.29999981   
+     36000   2469.4131     -73618.279      3988.2608      0.29999981   
+     40000   2470.3898     -73873.749     -2086.8985      0.29999981   
+     44000   2449.3918     -73788.869      2446.3232      0.29999981   
+     48000   2515.2805     -74081.377      2666.2027      0.29999981   
+     52000   2520.2799     -74235.281      5417.099       0.29999981   
+     56000   2563.2225     -73751.297      1450.0181      0.29999981   
+     60000   2472.5008     -73825.872      3337.7054      0.29999981   
+     64000   2591.5718     -73875.89       5351.1035      0.29999981   
+     68000   2339.4961     -73832.089      1829.366       0.29999981   
+     72000   2554.0617     -73871.61       1322.0109      0.29999981   
+     76000   2426.3166     -74123.515      2107.5249      0.29999981   
+     80000   2538.3309     -74145.529     -229.60324      0.29999981   
+     84000   2511.6652     -74408.485      5039.6652      0.29999981   
+     88000   2585.4326     -74042.542      2084.2033      0.29999981   
+     92000   2583.4525     -74382.923      1896.3526      0.29999981   
+     96000   2453.5473     -74192.408     -982.40639      0.29999981   
+    100000   2449.2689     -74288.645      1324.8108      0.29999981   
+    104000   2522.6749     -74066.057      233.10509      0.29999981   
+    108000   2525.7516     -74375.68       2182.9673      0.29999981   
+    112000   2474.4412     -74267.395      301.65114      0.29999981   
+    116000   2459.5539     -74207.712      3129.2928      0.29999981   
+    120000   2593.3095     -74136.264      2361.3987      0.29999981   
+Loop time of 718.528 on 8 procs for 120000 steps with 920 atoms
+
+Performance: 3.607 ns/day, 6.653 hours/ns, 167.008 timesteps/s, 153.648 katom-step/s
+96.1% CPU use with 8 MPI tasks x no OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 374.75     | 402.92     | 420.24     |  73.6 | 56.08
+Neigh   | 10.153     | 10.546     | 10.714     |   5.0 |  1.47
+Comm    | 73.656     | 91.109     | 119.3      | 154.4 | 12.68
+Output  | 0.10146    | 0.13838    | 0.15204    |   4.1 |  0.02
+Modify  | 212.8      | 213.13     | 213.49     |   1.5 | 29.66
+Other   |            | 0.6869     |            |       |  0.10
+
+Nlocal:            115 ave         182 max          65 min
+Histogram: 1 1 1 0 3 0 0 1 0 1
+Nghost:        1746.25 ave        1962 max        1514 min
+Histogram: 1 0 1 1 1 1 0 2 0 1
+Neighs:        20374.6 ave       34749 max       10504 min
+Histogram: 2 0 0 3 1 0 1 0 0 1
+
+Total # of neighbors = 162997
+Ave neighs/atom = 177.17065
+Neighbor list builds = 4522
+Dangerous builds = 0
+Total wall time: 0:11:58

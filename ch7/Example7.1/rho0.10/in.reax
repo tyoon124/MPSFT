@@ -1,0 +1,55 @@
+# Example 7.1 (mixture density 0.10 g/cm3) -- OH-initiated oxidation of methanol in dense water, ReaxFF (real units)
+# 32 CH3OH + 64 OH radicals + 200 H2O in a cubic periodic box whose size sets the mass density of the mixture.
+# The OH radicals are inserted as the initial reactive species (they stand for the radical pool of supercritical
+# water oxidation). T = 2500 K is used because (i) at 1500 K the CHO-2008 water is not a homogeneous fluid at
+# 0.1-0.3 g/cm3 (it separates into a dense droplet and voids, and its pressure does not follow the density) and
+# (ii) the methanol conversion at 1500 K is too slow to be observed in tens of picoseconds.
+# usage:  lmp -in in.reax                      (run inside the folder rho<value>/; mpirun -np 4 lmp -in in.reax)
+# files:  ffield.reax.cho (Chenoweth et al. 2008, distributed with LAMMPS), methanol.mol, oh.mol, water.mol
+units           real
+atom_style      charge
+boundary        p p p
+
+variable        rho     index 0.10       # mass density of the mixture, g/cm3
+variable        T       index 2500       # K
+variable        nM      index 32         # CH3OH
+variable        nOH     index 64         # OH radicals
+variable        nW      index 200        # H2O
+variable        seed    index 20261
+variable        nsteps  index 120000     # 30 ps at 0.25 fs
+
+variable        M       equal v_nM*32.042+v_nOH*17.007+v_nW*18.015      # total mass in amu
+variable        L       equal (v_M*1.66054/v_rho)^(1.0/3.0)             # box edge in Angstrom
+region          box block 0 ${L} 0 ${L} 0 ${L}
+create_box      3 box
+molecule        meth methanol.mol
+molecule        oh   oh.mol
+molecule        wat  water.mol
+create_atoms    0 random ${nM}  ${seed} box mol meth $(v_seed+1) overlap 1.8 maxtry 5000
+create_atoms    0 random ${nOH} $(v_seed+2) box mol oh $(v_seed+3) overlap 1.8 maxtry 5000
+create_atoms    0 random ${nW}  $(v_seed+4) box mol wat $(v_seed+5) overlap 1.8 maxtry 5000
+mass            1 12.011
+mass            2 1.008
+mass            3 15.999
+
+pair_style      reaxff NULL
+pair_coeff      * * ffield.reax.cho C H O
+fix             qeq all qeq/reaxff 1 0.0 10.0 1.0e-6 reaxff
+neighbor        2.0 bin
+neigh_modify    every 5 delay 0 check yes
+
+thermo          1000
+thermo_style    custom step temp pe press density
+minimize        1e-6 1e-6 500 5000
+
+reset_timestep  0
+velocity        all create ${T} ${seed} dist gaussian
+timestep        0.25
+fix             nvt all nvt temp ${T} ${T} 25.0
+variable        p equal press
+fix             pr all ave/time 20 50 1000 v_p file pressure.dat    # pressure (atm), 1000-step averages
+# atom types: 1 = C, 2 = H, 3 = O.  Connectivity is derived from the interatomic distances in the analysis script.
+dump            traj all custom 200 traj.lammpstrj id type x y z      # every 50 fs
+dump_modify     traj sort id
+thermo          4000
+run             ${nsteps}
